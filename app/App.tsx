@@ -1,118 +1,122 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
-
-import React from 'react';
-import type {PropsWithChildren} from 'react';
+import {NavigationContainer, useNavigation} from '@react-navigation/native';
 import {
+  IIVSBroadcastCameraView,
+  IVSBroadcastCameraView,
+} from 'amazon-ivs-react-native-broadcast';
+
+import React, {useEffect, useRef, useState} from 'react';
+import {
+  Button,
+  PermissionsAndroid,
   SafeAreaView,
-  ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
-  useColorScheme,
-  View,
 } from 'react-native';
+import {createNativeStackNavigator} from '@react-navigation/native-stack';
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
+const styles = StyleSheet.create({
+  broadcastView: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+  },
+  button: {
+    position: 'absolute',
+    bottom: 0,
+    width: '100%',
+  },
+  screen: {
+    flex: 1,
+  },
+});
 
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
+const VIDEO_CONFIG = {
+  width: 1920,
+  height: 1080,
+  bitrate: 7500000,
+  targetFrameRate: 60,
+  keyframeInterval: 2,
+  isBFrames: true,
+  isAutoBitrate: true,
+  maxBitrate: 8500000,
+  minBitrate: 1500000,
+} as const;
 
-function Section({children, title}: SectionProps): JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
-}
+const AUDIO_CONFIG = {
+  bitrate: 128000,
+} as const;
 
-function App(): JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
+function BroadcastScreen() {
+  const navigation = useNavigation();
+  const cameraViewRef = useRef<IIVSBroadcastCameraView>(null);
 
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
+  const swapCamera = async () => {
+    if (cameraViewRef.current) {
+      await cameraViewRef.current.swapCamera();
+    }
   };
 
   return (
-    <SafeAreaView style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
+    <SafeAreaView style={styles.screen}>
+      <IVSBroadcastCameraView
+        ref={cameraViewRef}
+        audioConfig={AUDIO_CONFIG}
+        style={styles.broadcastView}
+        videoConfig={VIDEO_CONFIG}
       />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
-        </View>
-      </ScrollView>
+      <Button onPress={() => navigation.navigate('Other')} title="To other" />
+      <Button onPress={() => swapCamera()} title="Swap camera" />
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-  },
-  highlight: {
-    fontWeight: '700',
-  },
-});
+function OtherScreen() {
+  const navigation = useNavigation();
+
+  return (
+    <SafeAreaView style={styles.screen}>
+      <Button
+        onPress={() => navigation.navigate('Broadcast')}
+        title="To broadcast"
+      />
+    </SafeAreaView>
+  );
+}
+
+const Stack = createNativeStackNavigator();
+
+const requestPermissions = async () => {
+  await PermissionsAndroid.requestMultiple([
+    PermissionsAndroid.PERMISSIONS.CAMERA,
+    PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+  ]);
+};
+
+function App(): JSX.Element {
+  const [isReadyToDisplay, setIsReadyToDisplay] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        await requestPermissions();
+      } finally {
+        setIsReadyToDisplay(true);
+      }
+    })();
+  }, []);
+
+  if (!isReadyToDisplay) {
+    return <Text>Waiting for permissions</Text>;
+  }
+
+  return (
+    <NavigationContainer>
+      <Stack.Navigator>
+        <Stack.Screen name="Broadcast" component={BroadcastScreen} />
+        <Stack.Screen name="Other" component={OtherScreen} />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}
 
 export default App;
