@@ -1,0 +1,1 @@
+Reprodction repo for a bug encountered with the react-native-ivs-broadcast package in conjunction with react-navigation.
